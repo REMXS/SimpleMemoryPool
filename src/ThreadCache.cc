@@ -1,5 +1,5 @@
 #include"ThreadCache.h"
-#include"CentralCacheRebuild.h"
+#include"CentralCache.h"
 namespace tyMemoryPool
 {
 
@@ -31,7 +31,7 @@ void* ThreadCache::fetchFromCentralCache(size_t idx){
     size_t batchNum=getBatchNum(blockSize);
 
     //从中心缓存中取batchNum个内存块，但是实际数量以返回值为准
-    auto[start,realNum]=CentralCacheRe::getInstance().fetchRange(idx,batchNum);
+    auto[start,realNum]=CentralCache::getInstance().fetchRange(idx,batchNum);
 
     if(!start) return nullptr;
 
@@ -126,7 +126,7 @@ void ThreadCache::returnToCentralCache(size_t idx){
     if(current)
     {
         void* retStart=*reinterpret_cast<void**>(current);
-        CentralCacheRe::getInstance().returnRange(retStart,idx);
+        CentralCache::getInstance().returnRange(retStart,idx);
 
         *reinterpret_cast<void**>(current)=nullptr;
         _freeList[idx]=start;
@@ -141,7 +141,7 @@ ThreadCache::~ThreadCache(){
     //向中心缓存返还所有内存块
     for(size_t i;i<FREE_LIST_SIZE;++i){
         if(_freeList[i])
-            CentralCacheRe::getInstance().returnRange(_freeList[i],i);
+            CentralCache::getInstance().returnRange(_freeList[i],i);
     }
 }
 

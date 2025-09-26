@@ -1,12 +1,12 @@
 #include"Common.h"
-#include"PageCacheRebuild.h"
-#include"CentralCacheRebuild.h"
+#include"PageCache.h"
+#include"CentralCache.h"
 #include<thread>
 #include<unordered_set>
 
 namespace tyMemoryPool{
 static constexpr size_t SPAN_PAGES=8;
-std::pair<void*,size_t> CentralCacheRe::fetchRange(size_t idx,size_t batchNum){
+std::pair<void*,size_t> CentralCache::fetchRange(size_t idx,size_t batchNum){
     //安全性检查
     if(idx>=FREE_LIST_SIZE||batchNum==0) 
         return {nullptr,0};
@@ -61,7 +61,7 @@ std::pair<void*,size_t> CentralCacheRe::fetchRange(size_t idx,size_t batchNum){
             //索引为idx的自由链表所对应的块的大小
             size_t blockSize=(idx+1)*ALIGNMENT;
 
-            size_t totalBlock=(span_page*PageCacheRe::PAGESIZE)/blockSize;
+            size_t totalBlock=(span_page*PageCache::PAGESIZE)/blockSize;
 
             size_t allowBlock=std::min(totalBlock,batchNum);
 
@@ -89,33 +89,33 @@ std::pair<void*,size_t> CentralCacheRe::fetchRange(size_t idx,size_t batchNum){
 }
 
 
-std::pair<void*,size_t>CentralCacheRe::fetchFromPageCache(size_t idx){
+std::pair<void*,size_t>CentralCache::fetchFromPageCache(size_t idx){
     //单个内存块的大小
     size_t blockSize=(idx+1)*ALIGNMENT;
     //计算实际需要的页数
-    size_t pageNum=(blockSize+PageCacheRe::PAGESIZE-1)/PageCacheRe::PAGESIZE;
+    size_t pageNum=(blockSize+PageCache::PAGESIZE-1)/PageCache::PAGESIZE;
 
     void* start=nullptr;
     size_t span_page=0;
     //按策略分配
     //小于32kb，固定分配32kb(8页)
-    if(blockSize<=SPAN_PAGES*PageCacheRe::PAGESIZE)
+    if(blockSize<=SPAN_PAGES*PageCache::PAGESIZE)
     {
-        start=PageCacheRe::getInstance().allocateSpan(SPAN_PAGES);
+        start=PageCache::getInstance().allocateSpan(SPAN_PAGES);
         span_page=SPAN_PAGES;
 
     }
     //大于32kb按实际需要进行分配
     else
     {
-        start=PageCacheRe::getInstance().allocateSpan(pageNum);
+        start=PageCache::getInstance().allocateSpan(pageNum);
         span_page=pageNum;
     }
 
     //切割span，构建链表和spanInfo
     char* current=static_cast<char*>(start);
     char* prev=nullptr;
-    size_t totalBlock=(span_page*PageCacheRe::PAGESIZE)/blockSize;
+    size_t totalBlock=(span_page*PageCache::PAGESIZE)/blockSize;
     for(int i=0;i<totalBlock-1;++i)
     {   
         prev=current;
@@ -135,7 +135,7 @@ std::pair<void*,size_t>CentralCacheRe::fetchFromPageCache(size_t idx){
     return {start,span_page};
 }
 
-void CentralCacheRe::registSpan(void* start,size_t totalBlocks,void* addr,size_t pageNum,size_t idx){
+void CentralCache::registSpan(void* start,size_t totalBlocks,void* addr,size_t pageNum,size_t idx){
     SpanInfo*newSpan=new SpanInfo;
     newSpan->addr=addr;
     newSpan->freeCount=newSpan->totalBlocks=totalBlocks;
@@ -158,7 +158,7 @@ void CentralCacheRe::registSpan(void* start,size_t totalBlocks,void* addr,size_t
     return;
 }
 
-void CentralCacheRe::returnRange(void*start,size_t idx){
+void CentralCache::returnRange(void*start,size_t idx){
     //返还的链表中的内存块同属于一个sizeclass
     std::unordered_set<SpanInfo*>temSpanMap;
     //安全性检查
@@ -223,7 +223,7 @@ void CentralCacheRe::returnRange(void*start,size_t idx){
                 //注销span
                 cancelSpan(span,idx);
                 //返还内存
-                PageCacheRe::getInstance().deallocateSpan(spanAddr,pageNum);
+                PageCache::getInstance().deallocateSpan(spanAddr,pageNum);
             }
             //更新空闲内存块的数量
             _centralFreeList[idx].freeSize-=temSpanMap.size();
@@ -251,7 +251,7 @@ void CentralCacheRe::returnRange(void*start,size_t idx){
     
 }
 
-void CentralCacheRe::cancelSpan(SpanInfo*span,size_t idx){
+void CentralCache::cancelSpan(SpanInfo*span,size_t idx){
     //如果span的prev为空，则说明span为对应链表的第一个节点，需要更新对应的链表
     if(!span->prev)
     {
@@ -274,11 +274,11 @@ void CentralCacheRe::cancelSpan(SpanInfo*span,size_t idx){
     delete span;
 }
 
-size_t CentralCacheRe::findShard(size_t idx){
+size_t CentralCache::findShard(size_t idx){
     return idx%NUM_SHARDS;
 }
 
-bool CentralCacheRe::shouldReturnToPageCache(size_t idx){
+bool CentralCache::shouldReturnToPageCache(size_t idx){
     if(idx<64) return _centralFreeList[idx].freeSize>8;
     else if(idx<128) return _centralFreeList[idx].freeSize>4;
     else if(idx<256) return _centralFreeList[idx].freeSize>3;

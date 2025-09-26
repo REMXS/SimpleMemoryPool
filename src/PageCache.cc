@@ -1,10 +1,10 @@
-#include"PageCacheRebuild.h"
+#include"PageCache.h"
 
 namespace tyMemoryPool{
 
 
 
-void* PageCacheRe::allocateSpan(size_t pageNum){
+void* PageCache::allocateSpan(size_t pageNum){
     std::lock_guard<std::mutex>lock(_mtx);
     //查找空闲的span
     //查找大于等于pageNum的span
@@ -46,7 +46,7 @@ void* PageCacheRe::allocateSpan(size_t pageNum){
     }
 }
 
-void* PageCacheRe::getMemroyFromSystem(size_t numPages){
+void* PageCache::getMemroyFromSystem(size_t numPages){
     size_t size=numPages*PAGESIZE;
     void* ptr=mmap(nullptr,size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
     if(ptr==MAP_FAILED) return nullptr;
@@ -56,7 +56,7 @@ void* PageCacheRe::getMemroyFromSystem(size_t numPages){
 }
 
 
-void PageCacheRe::deallocateSpan(void* addr,size_t pageNum){
+void PageCache::deallocateSpan(void* addr,size_t pageNum){
     //安全性检查
     if(!addr) return;
 
@@ -104,14 +104,14 @@ void PageCacheRe::deallocateSpan(void* addr,size_t pageNum){
     }
 
 }
-bool PageCacheRe::shouldReturnMemory(size_t pageNum){
+bool PageCache::shouldReturnMemory(size_t pageNum){
     if(pageNum<16) return _freeSpanList[pageNum].size>8;
     else if(pageNum<32) return _freeSpanList[pageNum].size>4;
     else if(pageNum<64) return _freeSpanList[pageNum].size>2;
     else return _freeSpanList[pageNum].size>1;
 }
 
-void PageCacheRe::returnMemroyToSystem(size_t pageNum){
+void PageCache::returnMemroyToSystem(size_t pageNum){
     //安全性检查
     if(_freeSpanList.find(pageNum)==_freeSpanList.end()||!_freeSpanList[pageNum].size) return;
 
@@ -149,7 +149,7 @@ void PageCacheRe::returnMemroyToSystem(size_t pageNum){
     
 }
 
-void PageCacheRe::registSpan(void* span,void* addr,size_t pageNum){
+void PageCache::registSpan(void* span,void* addr,size_t pageNum){
     //更新数量
     _freeSpanList[pageNum].size++;
     

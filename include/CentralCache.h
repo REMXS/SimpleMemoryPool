@@ -5,7 +5,7 @@
 namespace tyMemoryPool
 {
 
-class CentralCacheRe
+class CentralCache
 {
 private:
 
@@ -57,7 +57,7 @@ private:
     /// @return 
     bool shouldReturnToPageCache(size_t idx);
 
-    CentralCacheRe(){
+    CentralCache(){
         for(auto&l:_mapLocks) l.clear();
         for(auto&list:_centralFreeList)
         {
@@ -98,8 +98,8 @@ public:
     /// @param idx 自由链表对应的下标
     void returnRange(void*start,size_t idx);
 
-    static CentralCacheRe& getInstance(){
-        static CentralCacheRe instance;
+    static CentralCache& getInstance(){
+        static CentralCache instance;
         return instance;
     }
 };
